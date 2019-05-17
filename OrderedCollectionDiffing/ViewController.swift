@@ -3,6 +3,7 @@ import UIKit
 final class ViewController: UIViewController {
   // MARK: - Properties
   private(set) var data = [1, 2, 3, 4, 5]
+  private let networkQueue = DispatchQueue(label: "networkQueue", qos: .background)
   private lazy var  refreshControl: UIRefreshControl = {
     let control = UIRefreshControl()
     control.addTarget(self, action: #selector(fetchNewData), for: .valueChanged)
@@ -35,22 +36,22 @@ final class ViewController: UIViewController {
     ])
   }
 
-  // Mock a network request returning new data
-  private func mockedNewData() -> [Int] {
+  // Simulate a network request returning new data
+  private func simulateNewData() -> [Int] {
     let length = Int.random(in: 5...10)
     return (1...length).map { _ in Int.random(in: 0...10) }
   }
 
   // MARK: - Actions
   @objc private func fetchNewData() {
-    // Mock a two second long network request
-    DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2) {
+    // Simulate a two second long network request
+    networkQueue.asyncAfter(deadline: .now() + 2) { [weak self] in
       if #available(iOS 9999, *) {
-        DispatchQueue.main.async { [weak self] in
+        DispatchQueue.main.async {
           guard let self = self else { return }
           var deletedIndexPaths = [IndexPath]()
           var insertedIndexPaths = [IndexPath]()
-          let newData = self.mockedNewData()
+          let newData = self.simulateNewData()
           let diff = newData.difference(from: self.data)
 
           // Gather the row
@@ -65,14 +66,13 @@ final class ViewController: UIViewController {
 
           self.data = newData
 
-          self.tableView.performBatchUpdates({ [weak self] in
-            guard let self = self else { return }
+          self.tableView.performBatchUpdates({
             self.tableView.deleteRows(at: deletedIndexPaths, with: .fade)
             self.tableView.insertRows(at: insertedIndexPaths, with: .right)
-          }) { _ in
+          }, completion: { completed in
             self.refreshControl.endRefreshing()
             print("All done updating!")
-          }
+          })
         }
       }
     }
